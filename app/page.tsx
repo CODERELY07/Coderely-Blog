@@ -76,7 +76,7 @@ export const tutorials: Tutorial[] = [
   },
 ];
 
-// --- Map type fix: key type widened from numeric literals to `number` ---
+
 export const tutorialContentMap: Record<number, TutorialContent> = {
   1: {
     title: "How to Setup Next.js and Supabase",
@@ -91,8 +91,163 @@ export const tutorialContentMap: Record<number, TutorialContent> = {
         content:
           "First, visit https://supabase.com/ and sign in using GitHub. Follow the sign-in process and fill in the necessary inputs to create your account.",
       },
-      // (keep all other sections unchanged)
-    ],
+       {
+        title: "2. Create New Project",
+        content: "After creating your account, click 'New Project' and create your project. Once the project is created, navigate to Project Overview and find the Project API section to get your connection credentials."
+      },
+      {
+        title: "3. Get Your API Credentials",
+        content: "You'll need two important values: the Project URL and API Key. These will be used to connect your Next.js application to Supabase."
+      },
+      {
+        title: "4. Setup Environment Variables",
+        content: "Create a .env.local file in your project root and add your Supabase credentials:",
+        code: `NEXT_PUBLIC_SUPABASE_URL=YOUR_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=YOUR_SUPABASE_PUBLISHABLE_KEY`
+      },
+      {
+        title: "5. Install Next.js",
+        content: "Create a new Next.js application with the following commands:",
+        code: `npx create-next-app@latest my-app --yes
+cd my-app
+npm run dev`
+      },
+      {
+        title: "6. Install Supabase Dependencies",
+        content: "Install the required Supabase packages:",
+        code: `npm install @supabase/supabase-js
+npm install @supabase/ssr`
+      },
+      {
+        title: "7. Create Supabase Client (Browser)",
+        content: "Create utils/supabase/client.ts for client-side operations:",
+        code: `import { createBrowserClient } from "@supabase/ssr";
+
+export function createClient() {
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
+  );
+}`
+      },
+      {
+        title: "8. Create Supabase Server Client",
+        content: "Create utils/supabase/server.ts for server-side operations:",
+        code: `import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
+
+export async function createClient() {
+  const cookieStore = await cookies();
+
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            );
+          } catch {
+            // Ignored for Server Components
+          }
+        },
+      },
+    }
+  );
+}`
+      },
+      {
+        title: "9. Setup Middleware",
+        content: "Create middleware.ts in your project root:",
+        code: `import { type NextRequest } from 'next/server'
+import { updateSession } from '@/utils/supabase/middleware'
+
+export async function middleware(request: NextRequest) {
+  return await updateSession(request)
+}
+
+export const config = {
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|.*\\\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
+}`
+      },
+      {
+        title: "10. Create Middleware Helper",
+        content: "Create utils/supabase/middleware.ts:",
+        code: `import { createServerClient } from '@supabase/ssr'
+import { NextResponse, type NextRequest } from 'next/server'
+
+export async function updateSession(request: NextRequest) {
+  let supabaseResponse = NextResponse.next({ request })
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => 
+            request.cookies.set(name, value)
+          )
+          supabaseResponse = NextResponse.next({ request })
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          )
+        },
+      },
+    }
+  )
+
+  await supabase.auth.getUser()
+  return supabaseResponse
+}`
+      },
+      {
+        title: "11. Create Database Table",
+        content: "In your Supabase project, go to Table Editor and click 'New Table'. Create a table named 'listings' with a column 'name' of type text. Click the settings icon, uncheck 'isNullable', and save."
+      },
+      {
+        title: "12. Update Your Page Component",
+        content: "Replace the code in app/page.tsx:",
+        code: `import { createClient } from '@/utils/supabase/server';
+
+export default async function Home() {
+  const supabase = await createClient();
+  const { data: listings, error } = await supabase
+    .from("listings")
+    .select('*');
+
+  if (error) {
+    console.log(error)
+  }
+
+  return (
+    <div>
+      {listings?.map(listing => (
+        <p key={listing.id}>{listing.name}</p>
+      ))}
+    </div>
+  );
+}`
+      },
+      {
+        title: "13. Setup Row Level Security (RLS)",
+        content: "If you don't see any output, you need to configure RLS policies. In Supabase Table Editor, find 'Create RLS Policies', click it, then select the template 'Enable read access for all users' and save the policy. Refresh your website to see the output."
+      },
+      {
+        title: "Next Steps",
+        content: "Congratulations! You've successfully set up Next.js with Supabase. You can now add more tables, implement authentication, and build your full-stack application."
+      }
+    ]
   },
   2: {
     title: "Authentication in Google using Supabase",
